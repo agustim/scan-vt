@@ -1,8 +1,9 @@
 const request = require('request');
 const fs = require('fs');
 require('dotenv').config()
+const logger = require('./log.js')
 
-const analyzeFile = async (path) =>{
+const analyzeFile = (path) =>{
     return new Promise((resolve, reject) => {
       request({
         url: 'https://www.virustotal.com/api/v3/files',
@@ -15,7 +16,7 @@ const analyzeFile = async (path) =>{
 
     });
   }
-const reporteFile = async (id) => {
+const reporteFile = (id) => {
     return new Promise((resolve, reject) => {
         request({
             url: 'https://www.virustotal.com/api/v3/analyses/' + id,
@@ -26,33 +27,45 @@ const reporteFile = async (id) => {
         });
     });
 }
-
-const checkFile = async (file) => {
+const askAnalyzeFile = async (file) => {
     const datos = await analyzeFile( file )
     const id = JSON.parse(datos.body).data.id;
+    return id
+}
+
+const checkFile = async (id) => {
     const report = await reporteFile(id)
     const informe = JSON.parse(report.body)
     const results = informe.data.attributes.results
-    var hasVirus = false
+    var retorn = []
     for(let result in results){
         var itemActual = results[result]
         if (itemActual.result != null) {
-            hasVirus = true
-            console.log(result + " => " +itemActual.result)
+            retorn.push({enginy: result, result : itemActual.result })
         }
     }
-    if (!hasVirus) {
-        console.log("No virus found")
-    }
+    return retorn
 }
 
+
 const main = async () => {
-    var files = fs.readdirSync("../pids/" ) 
+    var vtFiles = []
+    var files = fs.readdirSync("../pids2/" ) 
     for(var i=0; i < files.length; i++){
         const file = files[i]
-        console.log(file)
-       await checkFile("../pids/" + file);
-    };
+        const id = await askAnalyzeFile("../pids2/" +file)
+        vtFiles.push({file:file, id:id})
+        logger.info("Analyzing file " + file + " : " + id)
+    }
+    for(var i=0; i < vtFiles.length; i++){
+        logger.info("check result:" + vtFiles[i].file+" : "+vtFiles[i].id)
+        const info = await checkFile(vtFiles[i].id)
+        if(info.length == 0) {
+            logger.info("No virus found")
+        } else {
+            logger.crit(JSON.stringify(info))
+        }
+    }
 }
 
 
