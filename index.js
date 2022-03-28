@@ -1,7 +1,6 @@
 const request = require('request');
 const fs = require('fs');
 require('dotenv').config()
-console.log(process.env)
 
 const analyzeFile = async (path) =>{
     return new Promise((resolve, reject) => {
